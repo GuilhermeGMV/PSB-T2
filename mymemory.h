@@ -1,56 +1,65 @@
 #ifndef MYMEMORY_H
 #define MYMEMORY_H
 
-#include <stddef.h>
-#include <stdlib.h>
+#include <stddef.h>   // Para usar size_t
+#include <stdlib.h>   // Para malloc e free
+#include <stdio.h>    // Para printf
 
-typedef struct allocation {
-    void *start;
-    size_t size;
-    struct allocation *next;
+// Estrutura que representa um bloco de memória alocado
+typedef struct allocation 
+{
+    void *start;               // Ponteiro para o início do bloco de memória alocado
+    size_t size;               // Tamanho do bloco de memória alocado
+    struct allocation *next;   // Próximo bloco na lista encadeada de alocações
 } allocation_t;
 
-typedef struct {
-    void *pool; // ponteiro para o bloco de memória real
-    size_t total_size;
-    allocation_t *head; // ponteiro para lista encadeada
+// Estrutura principal do gerenciador de memória
+typedef struct 
+{
+    void *pool;                // Ponteiro para o início do bloco total de memória (pool)
+    size_t total_size;         // Tamanho total da memória alocada
+    allocation_t *head;        // Ponteiro para a primeira alocação na lista encadeada
 } mymemory_t;
 
-mymemory_t* mymemory_init(size_t size);
-void* mymemory_alloc(mymemory_t *memory, size_t size);
-void mymemory_free(mymemory_t *memory, void *ptr);
-void mymemory_display(mymemory_t *memory);
-void mymemory_stats(mymemory_t *memory);
-void mymemory_cleanup(mymemory_t *memory);
+// Funções que fazem parte da API do gerenciador de memória
+mymemory_t* mymemory_init(size_t size);            // Inicializa o gerenciador
+void* mymemory_alloc(mymemory_t *memory, size_t size);  // Aloca memória dentro do pool
+void mymemory_free(mymemory_t *memory, void *ptr);      // Libera uma alocação
+void mymemory_display(mymemory_t *memory);              // Mostra todas as alocações
+void mymemory_stats(mymemory_t *memory);                // Mostra estatísticas do uso de memória
+void mymemory_cleanup(mymemory_t *memory);              // Libera toda a memória e limpa tudo
 
-mymemory_t* mymemory_init(size_t size){
-    mymemory_t *memory = malloc(sizeof(mymemory_t)); // criando o struct dinamicamente
-    if (!memory) return NULL;
+// Inicializa o gerenciador de memória com um pool de tamanho especificado
+mymemory_t* mymemory_init(size_t size)
+{
+    mymemory_t *memory = malloc(sizeof(mymemory_t)); // Aloca a estrutura principal
+    if (!memory) return NULL; // Falha ao alocar a estrutura
 
-    memory->pool = malloc(size); // alocação do pool de memória
-
-    if (!memory->pool) { // não conseguiu alocar o pool de memória
+    memory->pool = malloc(size); // Aloca o bloco total de memória (pool)
+    if (!memory->pool) // Se falhar ao alocar o pool, limpa e retorna NULL
+    {         
         free(memory);
         return NULL;
     }
-
-    memory->total_size = size; 
-    memory->head = NULL;
+    memory->total_size = size;   // Armazena o tamanho total
+    memory->head = NULL;        // Nenhuma alocação feita ainda
     return memory;
 }
 
+// Aloca um bloco de memória de tamanho `size` dentro do pool
 void* mymemory_alloc(mymemory_t *memory, size_t size){
-    if (!memory || size == 0 || size > memory->total_size) {
+    if (!memory || size > memory->total_size || size == 0) 
+    {
         return NULL;
     }
-
     void *pool_start = memory->pool;
-    void *pool_end = (char*)memory->pool + memory->total_size; // (char*) para fazer a aritmética de ponteiros
+    void *pool_end = (char*)memory->pool + memory->total_size;
 
-    if (memory->head == NULL) {
-        allocation_t *alloc = malloc(sizeof(allocation_t)); // criando o struct dinamicamente
+    // Caso seja a primeira alocação
+    if (memory->head == NULL) 
+    {
+        allocation_t *alloc = malloc(sizeof(allocation_t));
         if (!alloc) return NULL;
-
         alloc->start = pool_start;
         alloc->size = size;
         alloc->next = NULL;
@@ -58,71 +67,194 @@ void* mymemory_alloc(mymemory_t *memory, size_t size){
         return alloc->start;
     }
 
+    // Verifica espaço antes da primeira alocação
     allocation_t *prev_temp = NULL;
     allocation_t *curr_temp = memory->head;
-
     void *start_temp = pool_start;
-    size_t space = (char*)curr_temp->start - (char*)start_temp; // espaço entre a primeira alocação e o inicio do pool
-    
-    if (space >= size) { // se couber
+    size_t space = (char*)curr_temp->start - (char*)start_temp;
+
+    if (space >= size) 
+    {
         allocation_t *alloc = malloc(sizeof(allocation_t));
         if (!alloc) return NULL;
-
         alloc->start = start_temp;
         alloc->size = size;
         alloc->next = curr_temp;
-
         memory->head = alloc;
         return alloc->start;
     }
 
-    while (curr_temp->next) { // percorre a lista encadeada
+    // Percorre a lista encadeada procurando espaço entre alocações
+    while (curr_temp->next) 
+    {
         prev_temp = curr_temp;
         curr_temp = curr_temp->next;
 
-        start_temp = (char*)prev_temp->start + prev_temp->size; // fim do bloco anterior
-        space = (char*)curr_temp->start - (char*)start_temp; // espaço entre o fim do bloco anterior e o inicio bloco atual
+        start_temp = (char*)prev_temp->start + prev_temp->size;
+        space = (char*)curr_temp->start - (char*)start_temp;
 
-        if (space >= size) { // se couber
+        if (space >= size) 
+        {
             allocation_t *alloc = malloc(sizeof(allocation_t));
             if (!alloc) return NULL;
-
             alloc->start = start_temp;
             alloc->size = size;
             alloc->next = curr_temp;
             prev_temp->next = alloc;
-
             return alloc->start;
         }
     }
 
-    start_temp = (char*)curr_temp->start + curr_temp->size; // fim do ultimo bloco
-    space = (char*)pool_end - (char*)start_temp; // espaço entre o fim do ultimo bloco e o fim do pool
+    // Verifica espaço após a última alocação
+    start_temp = (char*)curr_temp->start + curr_temp->size;
+    space = (char*)pool_end - (char*)start_temp;
 
-    if (space >= size) { // se couber
+    if (space >= size) 
+    {
         allocation_t *alloc = malloc(sizeof(allocation_t));
         if (!alloc) return NULL;
-
         alloc->start = start_temp;
         alloc->size = size;
         alloc->next = NULL;
         curr_temp->next = alloc;
-
         return alloc->start;
     }
 
-    return NULL;
+    return NULL; // Sem espaço disponível
 }
 
-void mymemory_display(mymemory_t *memory){
+// Exibe todas as alocações realizadas
+void mymemory_display(mymemory_t *memory)
+{
     if (!memory) return;
-    allocation_t *curr = memory->head; 
-    printf("Lista de alocações:\n");
-    while (curr) {
-        size_t offset = (char*)curr->start - (char*)memory->pool; // calcula a distancia do início do pool (offset)
-        printf("  - Início: %p (offset %zu), Tamanho: %zu bytes\n", curr->start, offset, curr->size);
-        curr = curr->next; // passa para o próximo bloco
+    allocation_t *curr = memory->head;
+    printf("\nLista de alocacoes:\n");
+    while (curr) 
+    {
+        size_t offset = (char*)curr->start - (char*)memory->pool;
+        printf("-Inicio: %p (offset %zu), Tamanho: %zu bytes\n", curr->start, offset, curr->size);
+        curr = curr->next;
     }
+    printf("\n");
+}
+
+// Libera um bloco de memória previamente alocado
+void mymemory_free(mymemory_t *memory, void *ptr) 
+{
+    if (!memory || !ptr || !memory->head) return;
+
+    allocation_t *curr = memory->head;
+    allocation_t *prev = NULL;
+
+    while (curr) 
+    {
+        if (curr->start == ptr) 
+        {
+            if (prev == NULL) 
+            {
+                memory->head = curr->next; // Era o primeiro da lista
+            } else 
+            {
+                prev->next = curr->next;   // Remove do meio ou fim
+            }
+            free(curr); // Libera o nó da lista
+            return;
+        }
+
+        prev = curr;
+        curr = curr->next;
+    }
+}
+
+// Exibe estatísticas da memória: uso, fragmentação etc.
+void mymemory_stats(mymemory_t *memory) 
+{
+    if (!memory) 
+    {
+    return;
+    }
+    allocation_t *curr = memory->head;
+    size_t total_allocs = 0;
+    size_t total_allocated = 0;
+    size_t total_free = 0;
+    size_t largest_free_block = 0;
+    size_t fragment_count = 0;
+
+    char *start = (char *)memory->pool;
+    char *end = start + memory->total_size;
+
+    while (curr) 
+    {
+        total_allocs++;
+        total_allocated += curr->size;
+
+        char *curr_start = (char *)curr->start;
+        size_t gap = curr_start - start;
+
+        if (gap > 0) 
+        {
+            total_free += gap;
+            fragment_count++;
+            if (gap > largest_free_block) largest_free_block = gap;
+        }
+
+        start = curr_start + curr->size;
+        curr = curr->next;
+    }
+
+    // Verifica espaço livre no final do pool
+    if (start < end) 
+    {
+        size_t gap = end - start;
+        total_free += gap;
+        fragment_count++;
+        if (gap > largest_free_block) largest_free_block = gap;
+    }
+
+    // Imprime os dados
+    printf("Estatisticas de memoria:\n");
+    printf("-Total de alocacoes: %zu\n", total_allocs);
+    printf("-Memoria alocada: %zu bytes\n", total_allocated);
+    printf("-Memoria livre: %zu bytes\n", total_free);
+    printf("-Maior bloco livre: %zu bytes\n", largest_free_block);
+    printf("-Fragmentos livres: %zu\n", fragment_count);
+}
+
+// Libera toda a memória (alocações + pool) e zera tudo
+void mymemory_cleanup(mymemory_t *memory) 
+{
+    if (!memory) return;
+
+    allocation_t *curr = memory->head;
+    int count = 0;
+
+    while (curr) 
+    {
+        allocation_t *next = curr->next;
+        curr->start = NULL;
+        curr->size = 0;
+        curr->next = NULL;
+        free(curr);  // Libera o nó da alocação
+        curr = next;
+        count++;
+    }
+
+    // Zera e libera o pool de memória
+    if (memory->pool) 
+    {
+        for (size_t i = 0; i < memory->total_size; i++) 
+        {
+            ((char *)memory->pool)[i] = 0;
+        }
+        free(memory->pool);
+        memory->pool = NULL;
+    }
+
+    memory->head = NULL;
+    memory->total_size = 0;
+
+    free(memory); // Libera a estrutura principal
+    printf("Total de blocos liberados (com limpeza manual): %d\n", count);
 }
 
 #endif /* MYMEMORY_H */
