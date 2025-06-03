@@ -1,52 +1,51 @@
 #ifndef MYMEMORY_H
 #define MYMEMORY_H
 
-#include <stddef.h>   // Para usar size_t
-#include <stdlib.h>   // Para malloc e free
-#include <stdio.h>    // Para printf
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
 
-// Estrutura que representa um bloco de memória alocado
 typedef struct allocation 
 {
-    void *start;               // Ponteiro para o início do bloco de memória alocado
-    size_t size;               // Tamanho do bloco de memória alocado
-    struct allocation *next;   // Próximo bloco na lista encadeada de alocações
+    void *start;
+    size_t size;
+    struct allocation *next;
 } allocation_t;
 
-// Estrutura principal do gerenciador de memória
+
 typedef struct 
 {
-    void *pool;                // Ponteiro para o início do bloco total de memória (pool)
-    size_t total_size;         // Tamanho total da memória alocada
-    allocation_t *head;        // Ponteiro para a primeira alocação na lista encadeada
+    void *pool; // ponteiro para o bloco de memória real
+    size_t total_size;
+    allocation_t *head;
 } mymemory_t;
 
-// Funções que fazem parte da API do gerenciador de memória
-mymemory_t* mymemory_init(size_t size);            // Inicializa o gerenciador
-void* mymemory_alloc(mymemory_t *memory, size_t size);  // Aloca memória dentro do pool
-void mymemory_free(mymemory_t *memory, void *ptr);      // Libera uma alocação
-void mymemory_display(mymemory_t *memory);              // Mostra todas as alocações
-void mymemory_stats(mymemory_t *memory);                // Mostra estatísticas do uso de memória
-void mymemory_cleanup(mymemory_t *memory);              // Libera toda a memória e limpa tudo
 
-// Inicializa o gerenciador de memória com um pool de tamanho especificado
+mymemory_t* mymemory_init(size_t size);
+void* mymemory_alloc(mymemory_t *memory, size_t size);
+void mymemory_free(mymemory_t *memory, void *ptr);
+void mymemory_display(mymemory_t *memory);
+void mymemory_stats(mymemory_t *memory);
+void mymemory_cleanup(mymemory_t *memory);
+
+
 mymemory_t* mymemory_init(size_t size)
 {
-    mymemory_t *memory = malloc(sizeof(mymemory_t)); // Aloca a estrutura principal
-    if (!memory) return NULL; // Falha ao alocar a estrutura
+    mymemory_t *memory = malloc(sizeof(mymemory_t));
+    if (!memory) return NULL;
 
-    memory->pool = malloc(size); // Aloca o bloco total de memória (pool)
-    if (!memory->pool) // Se falhar ao alocar o pool, limpa e retorna NULL
+    memory->pool = malloc(size);
+    if (!memory->pool)
     {         
         free(memory);
         return NULL;
     }
-    memory->total_size = size;   // Armazena o tamanho total
-    memory->head = NULL;        // Nenhuma alocação feita ainda
+    memory->total_size = size;
+    memory->head = NULL;
     return memory;
 }
 
-// Aloca um bloco de memória de tamanho `size` dentro do pool
+
 void* mymemory_alloc(mymemory_t *memory, size_t size){
     if (!memory || size > memory->total_size || size == 0) 
     {
@@ -211,7 +210,6 @@ void mymemory_stats(mymemory_t *memory)
         if (gap > largest_free_block) largest_free_block = gap;
     }
 
-    // Imprime os dados
     printf("Estatisticas de memoria:\n");
     printf("-Total de alocacoes: %zu\n", total_allocs);
     printf("-Memoria alocada: %zu bytes\n", total_allocated);
