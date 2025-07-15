@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "mymemory.h"
+#include "mymemory.c"
 
 mymemory_t *mem = NULL;  // Variável global para facilitar os testes
 

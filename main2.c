@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "mymemory.h"
+#include "mymemory.c"
 
 int main() {
     printf("Inicializando gerenciador com 1024 bytes (1 KB)...\n");
